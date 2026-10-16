@@ -1,0 +1,12 @@
+# Random Password Generator - External Dependencies
+
+# This project uses only Python's standard library.
+# The following modules are built-in and do NOT need to be installed via pip:
+#   - secrets (cryptographic randomness)
+#   - string (character constants)
+#   - tkinter (GUI framework)
+#   - unittest (testing framework)
+
+# If you need to install Python itself, visit: https://www.python.org/downloads/
+
+# No external dependencies are required for this project.
