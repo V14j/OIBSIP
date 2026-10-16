@@ -1,0 +1,710 @@
+<title>BMI Calculator</title>
+
+<style>
+/* Design tokens: medical precision meets approachable wellness */
+:root {
+  --bg: #ffffff;
+  --surface: #f8f9fa;
+  --fg: #1a1a1a;
+  --fg-muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --underweight: #3b82f6;
+  --normal: #10b981;
+  --overweight: #f59e0b;
+  --obese: #ef4444;
+  --shadow: 0 1px 3px rgba(0,0,0,0.1);
+
+  /* Typography */
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --fg: #f1f5f9;
+    --fg-muted: #94a3b8;
+    --border: #334155;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --underweight: #60a5fa;
+    --normal: #34d399;
+    --overweight: #fbbf24;
+    --obese: #f87171;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --fg: #f1f5f9;
+  --fg-muted: #94a3b8;
+  --border: #334155;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --underweight: #60a5fa;
+  --normal: #34d399;
+  --overweight: #fbbf24;
+  --obese: #f87171;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  padding-block: 2rem;
+  padding-inline: 1rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--fg);
+  margin-bottom: 0.5rem;
+  text-wrap: balance;
+}
+
+.subtitle {
+  color: var(--fg-muted);
+  font-size: 1.125rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--fg);
+}
+
+input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.button-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+button {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--bg);
+}
+
+.result-card {
+  display: none;
+  text-align: center;
+  padding: 2.5rem 2rem;
+}
+
+.result-card.show {
+  display: block;
+}
+
+.bmi-value {
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bmi-category {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.category-description {
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+
+.history-section {
+  display: none;
+}
+
+.history-section.show {
+  display: block;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.history-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  gap: 1rem;
+}
+
+.history-info {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.history-label {
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.history-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.category-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chart-container {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  min-height: 300px;
+}
+
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.disclaimer {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+
+.disclaimer strong {
+  color: var(--fg);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--fg-muted);
+}
+
+.empty-state svg {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  opacity: 0.3;
+}
+
+.error-message {
+  color: var(--obese);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  display: none;
+}
+
+.error-message.show {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .bmi-value {
+    font-size: 3rem;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  button {
+    min-width: 100%;
+  }
+
+  .history-info {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+
+<div class="container">
+  <header>
+    <h1>BMI Calculator</h1>
+    <p class="subtitle">Track your Body Mass Index with history and trends</p>
+  </header>
+
+  <div class="card">
+    <form id="bmiForm">
+      <div class="form-group">
+        <label for="username">Name (optional)</label>
+        <input type="text" id="username" placeholder="Enter your name to save history">
+      </div>
+
+      <div class="form-group">
+        <label for="weight">Weight (kg)</label>
+        <input type="number" id="weight" step="0.1" min="1" max="500" placeholder="70" required>
+        <div class="error-message" id="weightError"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="height">Height (metres)</label>
+        <input type="number" id="height" step="0.01" min="0.5" max="3" placeholder="1.75" required>
+        <div class="error-message" id="heightError"></div>
+      </div>
+
+      <div class="button-group">
+        <button type="submit" class="btn-primary">Calculate BMI</button>
+        <button type="button" class="btn-secondary" onclick="clearForm()">Clear</button>
+        <button type="button" class="btn-secondary" onclick="toggleHistory()">View History</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card result-card" id="resultCard">
+    <div class="bmi-value" id="bmiValue">--</div>
+    <div class="bmi-category" id="bmiCategory">Category</div>
+    <div class="category-description" id="categoryDescription">Enter your details to calculate BMI</div>
+  </div>
+
+  <div class="card history-section" id="historySection">
+    <div class="history-header">
+      <h2>BMI History</h2>
+      <button type="button" class="btn-secondary" onclick="toggleHistory()">Close</button>
+    </div>
+    <div id="historyContent">
+      <div class="empty-state">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        <p>No BMI records yet. Enter your name and calculate BMI to start tracking your history.</p>
+      </div>
+    </div>
+    <div class="chart-container" id="chartContainer" style="display: none;">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <strong>⚠️ Medical Disclaimer:</strong> BMI is a screening measure and not a diagnostic tool. It does not account for muscle mass, bone density, or body composition. This application does not provide medical advice. Consult a healthcare professional for personalized health assessment.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<script>
+// BMI Calculator Logic
+const CATEGORIES = {
+  underweight: { min: 0, max: 18.5, label: 'Underweight', color: 'var(--underweight)', description: 'BMI below 18.5' },
+  normal: { min: 18.5, max: 25, label: 'Normal', color: 'var(--normal)', description: 'BMI between 18.5 and 24.9' },
+  overweight: { min: 25, max: 30, label: 'Overweight', color: 'var(--overweight)', description: 'BMI between 25 and 29.9' },
+  obese: { min: 30, max: 100, label: 'Obese', color: 'var(--obese)', description: 'BMI 30 or above' }
+};
+
+let chart = null;
+
+// Calculate BMI
+function calculateBMI(weight, height) {
+  return weight / (height * height);
+}
+
+// Classify BMI
+function classifyBMI(bmi) {
+  if (bmi < 18.5) return CATEGORIES.underweight;
+  if (bmi < 25) return CATEGORIES.normal;
+  if (bmi < 30) return CATEGORIES.overweight;
+  return CATEGORIES.obese;
+}
+
+// Validate inputs
+function validateInputs(weight, height) {
+  const errors = {};
+
+  if (!weight || weight <= 0) {
+    errors.weight = 'Weight must be greater than zero';
+  } else if (weight > 500) {
+    errors.weight = 'Please enter a realistic weight (max 500 kg)';
+  }
+
+  if (!height || height <= 0) {
+    errors.height = 'Height must be greater than zero';
+  } else if (height < 0.5) {
+    errors.height = 'Please enter a realistic height (min 0.5 m)';
+  } else if (height > 3) {
+    errors.height = 'Please enter height in metres (e.g., 1.75)';
+  }
+
+  return errors;
+}
+
+// Get stored history
+function getHistory() {
+  try {
+    const history = localStorage.getItem('bmiHistory');
+    return history ? JSON.parse(history) : [];
+  } catch (e) {
+    console.warn('Could not access localStorage:', e);
+    return [];
+  }
+}
+
+// Save to history
+function saveToHistory(username, weight, height, bmi, category) {
+  try {
+    const history = getHistory();
+    const record = {
+      username: username || 'Anonymous',
+      weight: parseFloat(weight),
+      height: parseFloat(height),
+      bmi: parseFloat(bmi),
+      category: category.label,
+      timestamp: new Date().toISOString()
+    };
+    history.unshift(record);
+    localStorage.setItem('bmiHistory', JSON.stringify(history.slice(0, 50))); // Keep last 50 records
+    return true;
+  } catch (e) {
+    console.warn('Could not save to localStorage:', e);
+    return false;
+  }
+}
+
+// Display result
+function displayResult(bmi, category) {
+  const resultCard = document.getElementById('resultCard');
+  const bmiValue = document.getElementById('bmiValue');
+  const bmiCategory = document.getElementById('bmiCategory');
+  const categoryDescription = document.getElementById('categoryDescription');
+
+  bmiValue.textContent = bmi.toFixed(2);
+  bmiValue.style.color = category.color;
+  bmiCategory.textContent = category.label;
+  bmiCategory.style.color = category.color;
+  categoryDescription.textContent = category.description;
+
+  resultCard.classList.add('show');
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Display history
+function displayHistory() {
+  const history = getHistory();
+  const historyContent = document.getElementById('historyContent');
+  const chartContainer = document.getElementById('chartContainer');
+
+  if (history.length === 0) {
+    historyContent.innerHTML = `
+      <div class="empty-state">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        <p>No BMI records yet. Enter your name and calculate BMI to start tracking your history.</p>
+      </div>
+    `;
+    chartContainer.style.display = 'none';
+    return;
+  }
+
+  const historyHTML = history.map((record, index) => {
+    const date = new Date(record.timestamp);
+    const category = classifyBMI(record.bmi);
+    return `
+      <div class="history-item">
+        <div class="history-info">
+          <div>
+            <div class="history-label">Date</div>
+            <div class="history-value">${date.toLocaleDateString()}</div>
+          </div>
+          <div>
+            <div class="history-label">Name</div>
+            <div class="history-value">${record.username}</div>
+          </div>
+          <div>
+            <div class="history-label">Weight</div>
+            <div class="history-value">${record.weight.toFixed(1)} kg</div>
+          </div>
+          <div>
+            <div class="history-label">Height</div>
+            <div class="history-value">${record.height.toFixed(2)} m</div>
+          </div>
+          <div>
+            <div class="history-label">BMI</div>
+            <div class="history-value">${record.bmi.toFixed(2)}</div>
+          </div>
+        </div>
+        <span class="category-badge" style="background: ${category.color}; color: white;">${record.category}</span>
+      </div>
+    `;
+  }).join('');
+
+  historyContent.innerHTML = `<div class="history-list">${historyHTML}</div>`;
+
+  // Show trend chart if there are at least 2 records
+  if (history.length >= 2) {
+    chartContainer.style.display = 'block';
+    drawTrendChart(history);
+  } else {
+    chartContainer.style.display = 'none';
+  }
+}
+
+// Draw trend chart
+function drawTrendChart(history) {
+  const ctx = document.getElementById('trendChart');
+
+  if (chart) {
+    chart.destroy();
+  }
+
+  const data = history.slice(0, 20).reverse();
+  const labels = data.map(r => new Date(r.timestamp).toLocaleDateString());
+  const bmiData = data.map(r => r.bmi);
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'BMI',
+        data: bmiData,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent'),
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--accent') + '20',
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `BMI: ${context.parsed.y.toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--border') },
+          ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--fg-muted') }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--fg-muted') }
+        }
+      }
+    }
+  });
+}
+
+// Toggle history visibility
+function toggleHistory() {
+  const historySection = document.getElementById('historySection');
+  const isVisible = historySection.classList.contains('show');
+
+  if (isVisible) {
+    historySection.classList.remove('show');
+  } else {
+    displayHistory();
+    historySection.classList.add('show');
+    historySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// Clear form
+function clearForm() {
+  document.getElementById('bmiForm').reset();
+  document.getElementById('resultCard').classList.remove('show');
+  document.querySelectorAll('.error-message').forEach(el => el.classList.remove('show'));
+}
+
+// Handle form submission
+document.getElementById('bmiForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  // Clear previous errors
+  document.querySelectorAll('.error-message').forEach(el => {
+    el.classList.remove('show');
+    el.textContent = '';
+  });
+
+  const username = document.getElementById('username').value.trim();
+  const weight = parseFloat(document.getElementById('weight').value);
+  const height = parseFloat(document.getElementById('height').value);
+
+  // Validate
+  const errors = validateInputs(weight, height);
+
+  if (Object.keys(errors).length > 0) {
+    if (errors.weight) {
+      const weightError = document.getElementById('weightError');
+      weightError.textContent = errors.weight;
+      weightError.classList.add('show');
+    }
+    if (errors.height) {
+      const heightError = document.getElementById('heightError');
+      heightError.textContent = errors.height;
+      heightError.classList.add('show');
+    }
+    return;
+  }
+
+  // Calculate
+  const bmi = calculateBMI(weight, height);
+  const category = classifyBMI(bmi);
+
+  // Display
+  displayResult(bmi, category);
+
+  // Save to history
+  saveToHistory(username, weight, height, bmi, category);
+});
+
+// Load history on page load if history section is visible
+window.addEventListener('load', () => {
+  const username = document.getElementById('username');
+  const history = getHistory();
+
+  // Add datalist for username suggestions
+  if (history.length > 0) {
+    const uniqueUsers = [...new Set(history.map(r => r.username))];
+    const datalist = document.createElement('datalist');
+    datalist.id = 'usernames';
+    uniqueUsers.forEach(user => {
+      const option = document.createElement('option');
+      option.value = user;
+      datalist.appendChild(option);
+    });
+    username.setAttribute('list', 'usernames');
+    document.body.appendChild(datalist);
+  }
+});
+</script>
