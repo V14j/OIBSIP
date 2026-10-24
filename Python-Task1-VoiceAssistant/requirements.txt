@@ -1,0 +1,11 @@
+# Voice Assistant dependencies
+# Speech recognition (microphone input)
+SpeechRecognition==3.10.0
+# Text-to-speech (voice output)
+pyttsx3==2.90
+# PyAudio is the microphone backend on most systems.
+# On Windows it is usually available as the bundled wheel:
+#   pip install pipwin && pipwin install pyaudio
+# On macOS:   brew install portaudio && pip install pyaudio
+# On Linux:   sudo apt-get install python3-pyaudio
+pyaudio==0.2.11
