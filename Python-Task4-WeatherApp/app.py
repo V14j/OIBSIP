@@ -72,136 +72,131 @@ class WeatherApp:
         self.inner.bind("<Configure>", lambda e: self.canvas.configure(
             scrollregion=self.canvas.bbox("all"), width=e.width))
 
-        # Main layout: left sidebar + main content area
-        container = tk.Frame(self.inner, bg=BG)
-        container.pack(fill="both", expand=True, padx=20, pady=10)
-        container.columnconfigure(1, weight=1)
+        # Centered container with max width for responsive layout
+        self.container = tk.Frame(self.inner, bg=BG)
+        self.container.pack(expand=True, fill='both', padx=24, pady=16)
+        self.container.columnconfigure(0, weight=1)
 
-        # --- Left sidebar ---
-        sidebar = tk.Frame(container, bg="#140828", width=180)
-        sidebar.pack(side="left", fill="y", padx=(0, 16))
-        sidebar.pack_propagate(False)
+        # Track container width for centering
+        self.inner.bind("<Configure>", self._on_inner_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
 
-        tk.Label(sidebar, text="WEATHER", font=("Segoe UI", 18, "bold"),
-                 bg="#140828", fg=ACCENT).pack(pady=(24, 4))
-        tk.Label(sidebar, text="Dashboard", font=("Segoe UI", 11),
-                 bg="#140828", fg=SUB).pack(pady=(0, 12))
-        tk.Label(sidebar, text="Open-Meteo API", font=("Segoe UI", 9),
-                 bg="#140828", fg="#6b5b7f").pack(pady=(0, 24))
+        # --- Header ---
+        header = tk.Frame(self.container, bg=BG)
+        header.grid(row=0, column=0, sticky='ew', pady=(0, 16))
+        header.columnconfigure(0, weight=1)
 
-        tk.Label(sidebar, text="Navigation", font=("Segoe UI", 9, "bold"),
-                 bg="#140828", fg=SUB).pack(anchor="w", padx=14)
-        tk.Label(sidebar, text="• Current Conditions", font=("Segoe UI", 9),
-                 bg="#140828", fg=TEXT).pack(anchor="w", padx=20, pady=2)
-        tk.Label(sidebar, text="• 24-Hour Forecast", font=("Segoe UI", 9),
-                 bg="#140828", fg=TEXT).pack(anchor="w", padx=20, pady=2)
-        tk.Label(sidebar, text="• 7-Day Outlook", font=("Segoe UI", 9),
-                 bg="#140828", fg=TEXT).pack(anchor="w", padx=20, pady=2)
+        # Accent line
+        accent_line = tk.Frame(header, bg=ACCENT, height=3)
+        accent_line.grid(row=0, column=0, sticky='ew', pady=(0, 10))
 
-        # Divider line
-        tk.Frame(sidebar, bg="#3d2065", height=1).pack(fill="x", padx=14, pady=16)
-
-        # Units in sidebar
-        tk.Label(sidebar, text="Units", font=("Segoe UI", 9, "bold"),
-                 bg="#140828", fg=SUB).pack(anchor="w", padx=14)
-        btns = tk.Frame(sidebar, bg="#140828")
-        btns.pack(anchor="w", padx=14, pady=6)
-        self.c_btn = tk.Button(btns, text="°C", command=lambda: self.set_units("metric"),
-                              bg=ACCENT, fg="#0f0f0f", font=("Segoe UI", 10, "bold"),
-                              relief="flat", padx=10, pady=4, cursor="hand2")
-        self.c_btn.pack(side="left", padx=(0, 6))
-        self.f_btn = tk.Button(btns, text="°F", command=lambda: self.set_units("imperial"),
-                              bg="#2d1b4e", fg=SUB, font=("Segoe UI", 10, "bold"),
-                              relief="flat", padx=10, pady=4, cursor="hand2")
-        self.f_btn.pack(side="left")
-
-        # Attribution at bottom of sidebar
-        tk.Label(sidebar, text="Data: Open-Meteo.com",
-                 font=("Segoe UI", 8), bg="#140828", fg="#6b5b7f").pack(side="bottom", pady=12)
-
-        # --- Main content area ---
-        main = tk.Frame(container, bg=BG)
-        main.pack(side="left", fill="both", expand=True)
-        main.columnconfigure(0, weight=1)
-
-        # Header row inside main
-        header = tk.Frame(main, bg=BG)
-        header.pack(fill="x", pady=(0, 10))
-        tk.Label(header, text="Weather Dashboard", font=("Segoe UI", 24, "bold"),
-                 bg=BG, fg=TEXT).pack(anchor="w")
+        tk.Label(header, text="Weather Dashboard", font=("Segoe UI", 28, "bold"),
+                 bg=BG, fg=TEXT).grid(row=1, column=0, sticky='w')
         tk.Label(header, text="Real-time forecasts • Open-Meteo • No API key required",
-                 font=("Segoe UI", 9), bg=BG, fg=SUB).pack(anchor="w", pady=(0, 2))
+                 font=("Segoe UI", 10), bg=BG, fg=SUB).grid(row=2, column=0, sticky='w', pady=(4, 0))
 
-        # Search bar inside main
-        search_frame = tk.Frame(main, bg=CARD_BG, padx=16, pady=14)
-        search_frame.pack(fill="x", pady=(0, 14))
-        search_frame.columnconfigure(2, weight=1)
-        tk.Label(search_frame, text="Search city:", font=("Segoe UI", 11, "bold"),
-                 bg=CARD_BG, fg=TEXT).grid(row=0, column=0, sticky="w", padx=(0, 6))
+        # Search bar card
+        search_card = tk.Frame(self.container, bg=CARD_BG,
+                                highlightbackground=CARD_BORDER, highlightthickness=1)
+        search_card.grid(row=1, column=0, sticky='ew', pady=(0, 16))
+        search_card.columnconfigure(1, weight=1)
+
+        search_inner = tk.Frame(search_card, bg=CARD_BG)
+        search_inner.pack(fill='x', padx=20, pady=16)
+        search_inner.columnconfigure(1, weight=1)
+
+        tk.Label(search_inner, text="Search City", font=("Segoe UI", 11, "bold"),
+                 bg=CARD_BG, fg=TEXT).grid(row=0, column=0, sticky='w', padx=(0, 16))
+
         self.city_var = tk.StringVar()
-        self.city_entry = tk.Entry(search_frame, textvariable=self.city_var,
+        self.city_entry = tk.Entry(search_inner, textvariable=self.city_var,
                                    font=("Segoe UI", 13), bg="#1a0b2e", fg=TEXT,
                                    insertbackground=TEXT, relief="flat", bd=0,
                                    highlightthickness=2, highlightbackground=ACCENT)
-        self.city_entry.grid(row=0, column=2, sticky="ew", padx=6)
-        self.search_btn = tk.Button(search_frame, text="Search  ⏎", command=self.search_weather,
+        self.city_entry.grid(row=0, column=1, sticky="ew", padx=8)
+
+        # Unit buttons in search row
+        unit_frame = tk.Frame(search_inner, bg=CARD_BG)
+        unit_frame.grid(row=0, column=2, sticky='e', padx=(8, 0))
+
+        self.c_btn = tk.Button(unit_frame, text="°C", command=lambda: self.set_units("metric"),
+                              bg=ACCENT, fg="#0f0f0f", font=("Segoe UI", 10, "bold"),
+                              relief="flat", padx=14, pady=7, cursor="hand2",
+                              bd=0, activebackground="#a855f7", activeforeground="#0f0f0f")
+        self.c_btn.pack(side="left", padx=(0, 6))
+        self.f_btn = tk.Button(unit_frame, text="°F", command=lambda: self.set_units("imperial"),
+                              bg="#2d1b4e", fg=SUB, font=("Segoe UI", 10, "bold"),
+                              relief="flat", padx=14, pady=7, cursor="hand2",
+                              bd=1, highlightbackground="#3d2065", highlightthickness=1,
+                              activebackground="#3d2065", activeforeground=TEXT)
+        self.f_btn.pack(side="left")
+
+        self.search_btn = tk.Button(search_inner, text="Search  ⏎", command=self.search_weather,
                                    bg=ACCENT, fg="#0f0f0f", font=("Segoe UI", 11, "bold"),
-                                   activebackground="#a855f7", relief="flat", padx=16, pady=7,
+                                   activebackground="#a855f7", relief="flat", padx=20, pady=7,
                                    cursor="hand2")
-        self.search_btn.grid(row=0, column=4, sticky="e", padx=(4, 0))
+        self.search_btn.grid(row=0, column=3, sticky="e", padx=(8, 0))
 
-        self.search_btn.config(state="normal", text="Search  ⏎")
-
-        # --- Current weather card (compact) ---
-        current_frame = tk.Frame(main, bg=CARD_BG, relief="flat", bd=0,
+        # --- Current weather card (primary focus) ---
+        current_frame = tk.Frame(self.container, bg=CARD_BG, relief="flat", bd=0,
                                   highlightbackground=CARD_BORDER, highlightthickness=1)
-        current_frame.pack(fill="x", pady=6)
+        current_frame.grid(row=2, column=0, sticky='ew', pady=(0, 16))
+
         current_inner = tk.Frame(current_frame, bg=CARD_BG)
-        current_inner.pack(padx=16, pady=14)
+        current_inner.pack(fill='x', padx=24, pady=20)
+
         # Top row: location left, icon right
         top = tk.Frame(current_inner, bg=CARD_BG)
         top.pack(fill="x")
-        self.city_name_lbl = tk.Label(top, text="Weather Dashboard", font=("Segoe UI", 16, "bold"),
+        self.city_name_lbl = tk.Label(top, text="Weather Dashboard", font=("Segoe UI", 20, "bold"),
                                       bg=CARD_BG, fg=TEXT)
         self.city_name_lbl.pack(side="left")
-        self.icon_lbl = tk.Label(top, text="⏳", font=("Segoe UI", 28), bg=CARD_BG, fg=ACCENT)
+        self.icon_lbl = tk.Label(top, text="☀️", font=("Segoe UI", 40), bg=CARD_BG, fg=ACCENT)
         self.icon_lbl.pack(side="right")
-        # Temp + desc compact
+
+        # Temp + desc
         mid = tk.Frame(current_inner, bg=CARD_BG)
-        mid.pack(fill="x", pady=(6, 4))
-        self.temp_big = tk.Label(mid, text="--°", font=("Segoe UI", 42, "bold"),
+        mid.pack(fill="x", pady=(10, 8))
+        self.temp_big = tk.Label(mid, text="--°", font=("Segoe UI", 56, "bold"),
                                   bg=CARD_BG, fg=TEXT)
         self.temp_big.pack(side="left")
-        self.desc_lbl = tk.Label(mid, text="Enter a city and search", font=("Segoe UI", 11),
+        self.desc_lbl = tk.Label(mid, text="Enter a city and search", font=("Segoe UI", 13),
                                  bg=CARD_BG, fg=SUB)
-        self.desc_lbl.pack(side="left", padx=10)
-        # Metrics row (4 cards, equal size)
-        metrics = tk.Frame(current_inner, bg=CARD_BG)
-        metrics.pack(fill="x", pady=(8, 0))
-        labels = [("Feels like", "feels_like"), ("Humidity", "humidity"),
-                  ("Wind", "wind_speed"), ("Pressure", "pressure")]
-        for i, (label, key) in enumerate(labels):
-            f = tk.Frame(metrics, bg="#140828", relief="flat", bd=0)
-            f.grid(row=0, column=i, sticky="ew", padx=4)
-            f.columnconfigure(0, weight=1)
-            tk.Label(f, text=label, font=("Segoe UI", 8, "bold"), bg="#140828", fg=SUB).pack(pady=(6, 1))
-            self.metric_vars = getattr(self, 'metric_vars', {})
-            self.metric_vars[label] = tk.Label(f, text="--", font=("Segoe UI", 11, "bold"),
-                                                bg="#140828", fg=TEXT)
-            self.metric_vars[label].pack(pady=(0, 6))
-            metrics.columnconfigure(i, weight=1)
-        self.metric_vars = self.metric_vars
+        self.desc_lbl.pack(side="left", padx=16, pady=(14, 0))
 
-        # Hourly forecast title
-        hourly_title = tk.Label(main, text="Next 24 Hours", font=("Segoe UI", 16, "bold"),
-                                bg=BG, fg=TEXT)
-        hourly_title.pack(anchor="w", pady=(14, 4))
-        # Hourly scroll strip
-        hourly_outer = tk.Frame(main, bg=BG)
+        # Metrics row (4 cards, equal width)
+        metrics = tk.Frame(current_inner, bg=CARD_BG)
+        metrics.pack(fill="x", pady=(12, 0))
+        labels = [("Feels Like", "feels_like"), ("Humidity", "humidity"),
+                  ("Wind", "wind_speed"), ("Pressure", "pressure")]
+        for i in range(4):
+            metrics.columnconfigure(i, weight=1, uniform="metrics")
+        self.metric_vars = {}
+        for i, (label, key) in enumerate(labels):
+            f = tk.Frame(metrics, bg="#1a0b2e", relief="flat", bd=0)
+            f.grid(row=0, column=i, sticky="nsew", padx=6)
+            f.columnconfigure(0, weight=1)
+            f.rowconfigure(0, weight=1)
+            f.rowconfigure(1, weight=1)
+            tk.Label(f, text=label, font=("Segoe UI", 9, "bold"), bg="#1a0b2e", fg=SUB).pack(pady=(10, 2))
+            self.metric_vars[label] = tk.Label(f, text="--", font=("Segoe UI", 13, "bold"),
+                                                bg="#1a0b2e", fg=TEXT)
+            self.metric_vars[label].pack(pady=(0, 10))
+
+        # Hourly forecast section
+        hourly_section = tk.Frame(self.container, bg=BG)
+        hourly_section.grid(row=3, column=0, sticky='ew', pady=(0, 16))
+        hourly_section.columnconfigure(0, weight=1)
+
+        hourly_header = tk.Frame(hourly_section, bg=BG)
+        hourly_header.pack(fill='x', pady=(0, 8))
+        tk.Label(hourly_header, text="Next 24 Hours", font=("Segoe UI", 18, "bold"),
+                bg=BG, fg=TEXT).pack(side='left')
+
+        # Hourly scroll strip with horizontal scrollbar
+        hourly_outer = tk.Frame(hourly_section, bg=BG)
         hourly_outer.pack(fill="x")
-        self.hourly_frame = tk.Frame(hourly_outer, bg=BG)
-        self.hourly_frame.pack(fill="x")
-        self.hourly_canvas = tk.Canvas(self.hourly_frame, bg=BG, highlightthickness=0, height=150)
+        self.hourly_canvas = tk.Canvas(hourly_outer, bg=BG, highlightthickness=0, height=160)
         self.hourly_scroll = ttk.Scrollbar(hourly_outer, orient="horizontal",
                                            command=self.hourly_canvas.xview)
         self.hourly_canvas.configure(xscrollcommand=self.hourly_scroll.set)
@@ -211,35 +206,71 @@ class WeatherApp:
         self.hourly_window = self.hourly_canvas.create_window((0, 0), window=self.hourly_inner, anchor="nw")
         self.hourly_inner.bind("<Configure>", lambda e: self.hourly_canvas.configure(
             scrollregion=self.hourly_canvas.bbox("all")))
+        # Bind mouse wheel to horizontal scroll
+        self.hourly_canvas.bind("<Enter>", lambda e: self.hourly_canvas.bind_all("<MouseWheel>", self._on_hourly_mousewheel))
+        self.hourly_canvas.bind("<Leave>", lambda e: self.hourly_canvas.unbind_all("<MouseWheel>"))
 
-        # Daily forecast title
-        daily_title = tk.Label(main, text="7-Day Forecast", font=("Segoe UI", 16, "bold"),
-                               bg=BG, fg=TEXT)
-        daily_title.pack(anchor="w", pady=(16, 4))
-        # Daily cards scroll frame (horizontal wrap, scroll if needed)
-        daily_outer = tk.Frame(main, bg=BG)
-        daily_outer.pack(fill="x", pady=(0, 8))
-        self.daily_frame = tk.Frame(daily_outer, bg=BG)
-        self.daily_frame.pack(fill="x")
+        # Daily forecast section
+        daily_section = tk.Frame(self.container, bg=BG)
+        daily_section.grid(row=4, column=0, sticky='ew', pady=(0, 16))
+        daily_section.columnconfigure(0, weight=1)
 
-        # Status
-        self.status_lbl = tk.Label(main, text="Ready", font=("Segoe UI", 9), bg=BG, fg=SUB)
-        self.status_lbl.pack(anchor="w", pady=(8, 2))
-        # Attribution inside main (not sidebar)
-        attr = tk.Label(main, text="Weather data by Open-Meteo.com",
+        daily_header = tk.Frame(daily_section, bg=BG)
+        daily_header.pack(fill='x', pady=(0, 8))
+        tk.Label(daily_header, text="7-Day Forecast", font=("Segoe UI", 18, "bold"),
+                bg=BG, fg=TEXT).pack(side='left')
+
+        daily_outer = tk.Frame(daily_section, bg=BG)
+        daily_outer.pack(fill="x")
+        self.daily_canvas = tk.Canvas(daily_outer, bg=BG, highlightthickness=0, height=200)
+        self.daily_scroll = ttk.Scrollbar(daily_outer, orient="horizontal",
+                                          command=self.daily_canvas.xview)
+        self.daily_canvas.configure(xscrollcommand=self.daily_scroll.set)
+        self.daily_scroll.pack(side="bottom", fill="x")
+        self.daily_canvas.pack(side="top", fill="both", expand=True)
+        self.daily_inner = tk.Frame(self.daily_canvas, bg=BG)
+        self.daily_window = self.daily_canvas.create_window((0, 0), window=self.daily_inner, anchor="nw")
+        self.daily_inner.bind("<Configure>", lambda e: self.daily_canvas.configure(
+            scrollregion=self.daily_canvas.bbox("all")))
+        self.daily_canvas.bind("<Enter>", lambda e: self.daily_canvas.bind_all("<MouseWheel>", self._on_daily_mousewheel))
+        self.daily_canvas.bind("<Leave>", lambda e: self.daily_canvas.unbind_all("<MouseWheel>"))
+
+        # Status and attribution
+        bottom = tk.Frame(self.container, bg=BG)
+        bottom.grid(row=5, column=0, sticky='ew', pady=(8, 0))
+        self.status_lbl = tk.Label(bottom, text="Ready", font=("Segoe UI", 9), bg=BG, fg=SUB)
+        self.status_lbl.pack(anchor="w")
+        attr = tk.Label(bottom, text="Weather data by Open-Meteo.com",
                         font=("Segoe UI", 8), bg=BG, fg="#6b5b7f")
-        attr.pack(anchor="w", pady=(0, 6))
+        attr.pack(anchor="w", pady=(4, 0))
+
+    def _on_inner_configure(self, event):
+        """Update scroll region when inner content changes."""
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        """Center container horizontally when canvas resizes."""
+        canvas_width = event.width
+        max_content_width = 1100
+        content_width = min(canvas_width - 48, max_content_width)  # account for padding
+        self.canvas.itemconfig(self.canvas_window, width=content_width)
 
     # --- Actions ---
+
+    def _on_hourly_mousewheel(self, event):
+        """Handle mouse wheel scrolling on hourly strip."""
+        self.hourly_canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def set_units(self, units):
         if units == self.current_units:
             return
         self.current_units = units
-        self.c_btn.config(bg=ACCENT if units == "metric" else "#2d1b4e",
-                          fg="#0f0f0f" if units == "metric" else SUB)
-        self.f_btn.config(bg=ACCENT if units == "imperial" else "#2d1b4e",
-                          fg="#0f0f0f" if units == "imperial" else SUB)
+        if units == "metric":
+            self.c_btn.config(bg=ACCENT, fg="#0f0f0f", bd=0, highlightthickness=0)
+            self.f_btn.config(bg="#2d1b4e", fg=SUB, bd=1, highlightbackground="#3d2065", highlightthickness=1)
+        else:
+            self.c_btn.config(bg="#2d1b4e", fg=SUB, bd=1, highlightbackground="#3d2065", highlightthickness=1)
+            self.f_btn.config(bg=ACCENT, fg="#0f0f0f", bd=0, highlightthickness=0)
         if self.current_weather:
             self._update_weather_display(self.current_weather)
 
@@ -326,6 +357,10 @@ class WeatherApp:
         # Daily cards
         self._build_daily(w.get('daily', []), w['units'])
 
+    def _on_daily_mousewheel(self, event):
+        """Handle mouse wheel scrolling on daily cards."""
+        self.daily_canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
     def _build_hourly(self, hourly, units):
         # Clear old
         for child in self.hourly_inner.winfo_children():
@@ -336,66 +371,70 @@ class WeatherApp:
             return
         sym = "°C" if units == "metric" else "°F"
         for i, item in enumerate(hourly[:24]):
-            card = tk.Frame(self.hourly_inner, bg=CARD_BG, relief="ridge", bd=1,
-                            highlightbackground="#334155")
-            card.pack(side="left", padx=4)
+            card = tk.Frame(self.hourly_inner, bg=CARD_BG, relief="flat", bd=0,
+                            highlightbackground=CARD_BORDER, highlightthickness=1)
+            card.pack(side="left", padx=6, pady=4)
+            card.pack_propagate(False)
+            card.configure(width=80)
             t_str = item['time']
             # Show hour only
             try:
                 t_display = t_str.split('T')[-1][:5] if 'T' in t_str else t_str[-8:-3]
             except Exception:
                 t_display = t_str[-8:-3] if len(t_str) > 5 else t_str
-            tk.Label(card, text=t_display, font=("Segoe UI", 9, "bold"),
-                     bg=CARD_BG, fg=TEXT).pack(pady=(6, 0))
+            tk.Label(card, text=t_display, font=("Segoe UI", 10, "bold"),
+                     bg=CARD_BG, fg=TEXT).pack(pady=(10, 2))
             tk.Label(card, text=get_icon_text(item.get('weather_code', 0)),
-                     font=("Segoe UI", 20), bg=CARD_BG, fg=ACCENT).pack()
+                     font=("Segoe UI", 24), bg=CARD_BG, fg=ACCENT).pack(pady=4)
             temp = item.get('temperature')
             if temp is not None:
-                tk.Label(card, text=f"{temp}{sym}", font=("Segoe UI", 11, "bold"),
+                tk.Label(card, text=f"{temp}{sym}", font=("Segoe UI", 12, "bold"),
                          bg=CARD_BG, fg=TEXT).pack()
             else:
-                tk.Label(card, text="--", font=("Segoe UI", 11), bg=CARD_BG, fg=SUB).pack()
+                tk.Label(card, text="--", font=("Segoe UI", 12), bg=CARD_BG, fg=SUB).pack()
             prec = item.get('precipitation_probability', 0)
             if prec:
                 tk.Label(card, text=f"☔ {prec}%", font=("Segoe UI", 8),
-                         bg=CARD_BG, fg="#f87171").pack(pady=(2, 6))
+                         bg=CARD_BG, fg="#f87171").pack(pady=(2, 8))
             else:
-                tk.Label(card, text="", bg=CARD_BG).pack(pady=(2, 6))
+                tk.Label(card, text="", bg=CARD_BG).pack(pady=(2, 8))
         self.hourly_inner.update_idletasks()
         self.hourly_canvas.configure(scrollregion=self.hourly_canvas.bbox("all"))
 
     def _build_daily(self, daily, units):
-        for c in self.daily_frame.winfo_children():
+        for c in self.daily_inner.winfo_children():
             c.destroy()
         if not daily:
-            tk.Label(self.daily_frame, text="Daily forecast unavailable",
-                     font=("Segoe UI", 10), bg=BG, fg=SUB).pack(anchor="w")
+            tk.Label(self.daily_inner, text="Daily forecast unavailable",
+                     font=("Segoe UI", 10), bg=BG, fg=SUB).pack(anchor="w", padx=10)
             return
         sym = "°C" if units == "metric" else "°F"
         for item in daily[:7]:
-            card = tk.Frame(self.daily_frame, bg=CARD_BG, relief="ridge", bd=1,
-                            highlightbackground="#334155")
-            card.pack(side="left", fill="y", padx=6, pady=4, expand=True)
+            card = tk.Frame(self.daily_inner, bg=CARD_BG, relief="flat", bd=0,
+                            highlightbackground=CARD_BORDER, highlightthickness=1)
+            card.pack(side="left", fill="y", padx=8, pady=4)
+            card.pack_propagate(False)
+            card.configure(width=120)
             # Day label
             d_str = item.get('date', '')
             try:
                 from datetime import datetime as dt
-                day_name = dt.fromisoformat(d_str.replace('Z', '+00:00')).strftime("%a")
+                day_name = dt.fromisoformat(d_str.replace('Z', '+00:00')).strftime("%a %b %d")
             except Exception:
-                day_name = d_str[:3] if len(d_str) >= 3 else d_str
-            tk.Label(card, text=day_name, font=("Segoe UI", 12, "bold"),
-                     bg=CARD_BG, fg=TEXT).pack(pady=(10, 2))
+                day_name = d_str[:10] if len(d_str) >= 10 else d_str
+            tk.Label(card, text=day_name, font=("Segoe UI", 11, "bold"),
+                     bg=CARD_BG, fg=TEXT).pack(pady=(12, 2))
             tk.Label(card, text=get_icon_text(item.get('weather_code', 0)),
-                     font=("Segoe UI", 28), bg=CARD_BG, fg=ACCENT).pack()
+                     font=("Segoe UI", 32), bg=CARD_BG, fg=ACCENT).pack(pady=6)
             tk.Label(card, text=get_icon_desc(item.get('weather_code', 0)),
                      font=("Segoe UI", 9), bg=CARD_BG, fg=SUB).pack(pady=(0, 6))
             max_t = item.get('max_temp')
             min_t = item.get('min_temp')
             if max_t is not None and min_t is not None:
-                tk.Label(card, text=f"{max_t}{sym} / {min_t}{sym}",
-                         font=("Segoe UI", 11, "bold"), bg=CARD_BG, fg=TEXT).pack()
+                tk.Label(card, text=f"H {max_t}{sym}  L {min_t}{sym}",
+                         font=("Segoe UI", 11, "bold"), bg=CARD_BG, fg=TEXT).pack(pady=(0, 10))
             else:
-                tk.Label(card, text="-- / --", font=("Segoe UI", 11), bg=CARD_BG, fg=SUB).pack()
+                tk.Label(card, text="-- / --", font=("Segoe UI", 11), bg=CARD_BG, fg=SUB).pack(pady=(0, 10))
 
 
 # Entry

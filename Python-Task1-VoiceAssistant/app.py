@@ -53,28 +53,34 @@ except ImportError:
     pythoncom = None  # type: ignore
 
 
-# --------------------------------------------------------------------------
-# Premium dark palette — electric violet / cyan on deep navy-black
-# --------------------------------------------------------------------------
-BG_MAIN      = "#08080f"   # window background - deeper
-BG_PANEL     = "#0d0d1a"   # sidebar / header panels - darker
-BG_CARD      = "#131322"   # cards and conversation area
-BG_CARD_HOVER = "#1a1a2e"  # card hover state
-BG_INPUT     = "#18182a"   # input fields
-BORDER       = "#242440"   # hairline borders - softer
-BORDER_ACCENT = "#3a3a60"  # accent borders
-TEXT_PRIMARY = "#f0f4ff"   # primary text - brighter
-TEXT_MUTED   = "#7a82a8"   # secondary text
-TEXT_DIM     = "#4a4f6a"   # dim text
-VIOLET       = "#a855f7"   # primary accent - electric violet
-VIOLET_GLOW  = "#c084fc"   # violet glow
-VIOLET_SOFT  = "#d8b4fe"   # user messages
-CYAN         = "#06b6d4"   # secondary accent - electric cyan
-CYAN_GLOW    = "#22d3ee"   # cyan glow
-CYAN_SOFT    = "#a5f3fc"   # assistant labels
+# ─── Premium Dark Palette — Charcoal/Navy with Electric Blue Accents ──────
+BG_MAIN       = "#0a0a12"   # Main window - deep charcoal/navy
+BG_PANEL      = "#0f0f1a"   # Sidebar/header panels
+BG_CARD       = "#141420"   # Cards and conversation area
+BG_CARD_HOVER = "#1a1a2a"   # Card hover state
+BG_INPUT      = "#181824"   # Input fields
+BORDER        = "#2a2a40"   # Subtle borders
+BORDER_ACCENT = "#00d4ff"   # Electric blue accent borders
+
+TEXT_PRIMARY  = "#f0f4ff"   # Primary text - bright
+TEXT_SECONDARY = "#9ca3c8"  # Secondary text
+TEXT_MUTED    = "#6a6f8a"   # Muted text
+TEXT_DIM      = "#4a4f6a"   # Dim text
+
+# Electric blue accent system
+ELECTRIC_BLUE   = "#00d4ff"  # Primary accent - electric cyan/blue
+ELECTRIC_BLUE_GLOW = "#66e8ff" # Lighter glow
+ELECTRIC_BLUE_DIM  = "#00a8cc" # Darker variant
+ELECTRIC_VIOLET = "#a855f7"   # Secondary accent - violet (for user messages)
+ELECTRIC_VIOLET_GLOW = "#c084fc"
+ELECTRIC_VIOLET_SOFT = "#d8b4fe" # User message bubbles
+
 SUCCESS      = "#22c55e"
 WARNING      = "#f59e0b"
 DANGER       = "#ef4444"
+
+ASSISTANT_BG = "#0e1a2a"  # Assistant message background - subtle blue tint
+USER_BG      = "#1a0e2a"  # User message background - subtle violet tint
 
 
 def _hex_lerp(color_a: str, color_b: str, t: float) -> str:
@@ -96,9 +102,9 @@ class VoiceAssistantApp:
     """Main Tkinter application for the voice assistant."""
 
     # Voice orb configuration
-    ORB_SIZE = 140
-    ORB_CENTER = 70
-    ORB_RINGS = 4
+    ORB_SIZE = 150
+    ORB_CENTER = 75
+    ORB_RINGS = 5
 
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -117,21 +123,20 @@ class VoiceAssistantApp:
         self.listening = False
         self._stop_event = threading.Event()
         self.listen_thread: Optional[threading.Thread] = None
-        # Verified working microphone device index (user-configured)
-        self.mic_device_index = 1
+        self.mic_device_index = None  # Use system default microphone
 
         # Text-to-speech engine
         self.tts_engine = None
         self.speaking = False
-        self._tts_speaking = False  # Thread-safe flag for TTS worker speaking state
+        self._tts_speaking = False
         self.tts_enabled = tk.BooleanVar(value=True)
         self.voice_names: list = []
         self.voice_ids: list = []
 
-        # Thread communication: every GUI update flows through this queue
+        # Thread communication
         self.gui_queue: "queue.Queue[tuple[str, object]]" = queue.Queue()
 
-        # TTS queue and worker thread for serialized speech
+        # TTS queue and worker thread
         self.tts_queue: "queue.Queue[Optional[str]]" = queue.Queue()
         self.tts_worker_thread: Optional[threading.Thread] = None
         self._tts_shutdown = threading.Event()
@@ -155,9 +160,7 @@ class VoiceAssistantApp:
         )
         self._set_status("Ready")
 
-    # ------------------------------------------------------------------
-    # Styling
-    # ------------------------------------------------------------------
+    # ─── Styling ──────────────────────────────────────────────────────────
     def setup_styles(self):
         """Configure ttk styles for the dark theme."""
         style = ttk.Style()
@@ -185,7 +188,7 @@ class VoiceAssistantApp:
         )
         style.map("TCombobox",
             fieldbackground=[("readonly", BG_INPUT)],
-            selectbackground=[("readonly", VIOLET)],
+            selectbackground=[("readonly", ELECTRIC_BLUE)],
             selectforeground=[("readonly", "white")],
             borderwidth=[("readonly", 0)],
         )
@@ -193,8 +196,16 @@ class VoiceAssistantApp:
         style.map("TCheckbutton",
             background=[("active", BG_CARD)],
             foreground=[("active", TEXT_PRIMARY)],
-            indicatorcolor=[("selected", VIOLET)],
+            indicatorcolor=[("selected", ELECTRIC_BLUE)],
         )
+
+        # Scrollbar styling
+        style.configure("Vertical.TScrollbar",
+            background=BG_CARD, troughcolor=BG_MAIN, bordercolor=BG_MAIN,
+            arrowcolor=TEXT_MUTED, width=10, gripcount=0)
+        style.map("Vertical.TScrollbar",
+            background=[("active", BG_CARD_HOVER)],
+            arrowcolor=[("active", ELECTRIC_BLUE)])
 
     @staticmethod
     def _hover(widget, base_bg: str, hover_bg: str, base_fg: str = None, hover_fg: str = None):
@@ -238,11 +249,11 @@ class VoiceAssistantApp:
     def _pill_button(self, parent, text, command, primary=False, compact=True):
         """Create a modern pill-style button."""
         if primary:
-            bg, fg = VIOLET, "white"
-            hover_bg, hover_fg = "#9333ea", "white"
+            bg, fg = ELECTRIC_BLUE, "white"
+            hover_bg, hover_fg = ELECTRIC_BLUE_DIM, "white"
         else:
             bg, fg = BG_INPUT, TEXT_PRIMARY
-            hover_bg, hover_fg = BG_CARD_HOVER, VIOLET
+            hover_bg, hover_fg = BG_CARD_HOVER, ELECTRIC_BLUE
 
         padx = 16 if compact else 24
         pady = 6 if compact else 10
@@ -260,25 +271,22 @@ class VoiceAssistantApp:
     def _icon_button(self, parent, text, command, size=40, primary=False):
         """Create a circular icon button."""
         if primary:
-            bg, fg = VIOLET, "white"
-            hover_bg = "#9333ea"
+            bg, fg = ELECTRIC_BLUE, "white"
+            hover_bg = ELECTRIC_BLUE_DIM
         else:
             bg, fg = BG_INPUT, TEXT_MUTED
             hover_bg = BG_CARD_HOVER
 
         btn = tk.Button(
             parent, text=text, command=command,
-            bg=bg, fg=fg, activebackground=hover_bg, activeforeground="white" if primary else VIOLET,
+            bg=bg, fg=fg, activebackground=hover_bg, activeforeground="white" if primary else ELECTRIC_BLUE,
             font=("Segoe UI", 14), relief="flat", bd=0,
             width=3, height=1, cursor="hand2",
         )
-        # Make it circular via canvas overlay or just style
-        self._hover(btn, bg, hover_bg, fg, "white" if primary else VIOLET)
+        self._hover(btn, bg, hover_bg, fg, "white" if primary else ELECTRIC_BLUE)
         return btn
 
-    # ------------------------------------------------------------------
-    # Widget layout
-    # ------------------------------------------------------------------
+    # ─── Widget Layout ────────────────────────────────────────────────────
     def create_widgets(self):
         """Create and layout all GUI components."""
         # ---- header / hero section ------------------------------------
@@ -293,7 +301,7 @@ class VoiceAssistantApp:
             brand_wrap,
             text="NOVA",
             bg=BG_MAIN,
-            fg=VIOLET,
+            fg=ELECTRIC_BLUE,
             font=("Segoe UI", 32, "bold"),
         ).pack(anchor=tk.W)
 
@@ -301,7 +309,7 @@ class VoiceAssistantApp:
             brand_wrap,
             text="Intelligent Voice Assistant",
             bg=BG_MAIN,
-            fg=TEXT_MUTED,
+            fg=TEXT_SECONDARY,
             font=("Segoe UI", 13),
         ).pack(anchor=tk.W)
 
@@ -341,7 +349,7 @@ class VoiceAssistantApp:
         left = tk.Frame(body, bg=BG_MAIN)
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 12))
 
-        sidebar = tk.Frame(body, bg=BG_MAIN, width=300)
+        sidebar = tk.Frame(body, bg=BG_MAIN, width=320)
         sidebar.pack(side=tk.RIGHT, fill=tk.Y)
         sidebar.pack_propagate(False)
 
@@ -350,7 +358,7 @@ class VoiceAssistantApp:
         self._build_sidebar(sidebar)
 
         # ---- bottom status bar ----------------------------------------
-        status_bar = tk.Frame(self.root, bg=BG_PANEL, height=32)
+        status_bar = tk.Frame(self.root, bg=BG_PANEL, height=36)
         status_bar.pack(side=tk.BOTTOM, fill=tk.X)
         status_bar.pack_propagate(False)
 
@@ -386,8 +394,8 @@ class VoiceAssistantApp:
         self.orb_ring_base_radii = []
         self.orb_glow_rings = []
 
-        # Base glow (static backdrop)
-        for i in range(3):
+        # Base glow rings (static backdrop)
+        for i in range(4):
             r = max_r - i * 8
             glow = c.create_oval(
                 center - r, center - r, center + r, center + r,
@@ -401,22 +409,22 @@ class VoiceAssistantApp:
             self.orb_ring_base_radii.append(r)
             ring = c.create_oval(
                 center - r, center - r, center + r, center + r,
-                outline=VIOLET if i % 2 == 0 else CYAN,
+                outline=ELECTRIC_BLUE if i % 2 == 0 else ELECTRIC_VIOLET,
                 width=2 if i < 2 else 1,
             )
             self.orb_rings.append(ring)
 
         # Central core
-        core_r = 18
+        core_r = 20
         self.orb_core = c.create_oval(
             center - core_r, center - core_r, center + core_r, center + core_r,
-            fill=VIOLET, outline="",
+            fill=ELECTRIC_BLUE, outline="",
         )
         # Core inner glow
         self.orb_core_glow = c.create_oval(
-            center - core_r + 3, center - core_r + 3,
-            center + core_r - 3, center + core_r - 3,
-            outline=VIOLET_GLOW, width=1,
+            center - core_r + 4, center - core_r + 4,
+            center + core_r - 4, center + core_r - 4,
+            outline=ELECTRIC_BLUE_GLOW, width=2,
         )
 
         # Initialize orb state
@@ -436,79 +444,73 @@ class VoiceAssistantApp:
         import math
 
         if self.orb_state == ORB_READY:
-            # Calm breathing - slow pulsing cyan/violet glow
+            # Calm breathing - slow pulsing electric blue glow
             phase = (self.orb_ring_phases[0] + 0.02) % (2 * math.pi)
             for i in range(self.ORB_RINGS):
                 self.orb_ring_phases[i] = phase + i * 0.8
                 r = self.orb_ring_base_radii[i] + math.sin(self.orb_ring_phases[i]) * 3
                 c.coords(self.orb_rings[i],
                     center - r, center - r, center + r, center + r)
-                # Alternate colors with gentle alpha simulation
-                color = VIOLET if i % 2 == 0 else CYAN
+                color = ELECTRIC_BLUE if i % 2 == 0 else ELECTRIC_VIOLET
                 c.itemconfig(self.orb_rings[i], outline=color, width=2 if i < 2 else 1)
 
             # Core gentle pulse
-            core_pulse = 18 + math.sin(phase * 0.5) * 2
+            core_pulse = 20 + math.sin(phase * 0.5) * 3
             c.coords(self.orb_core,
                 center - core_pulse, center - core_pulse,
                 center + core_pulse, center + core_pulse)
-            c.itemconfig(self.orb_core, fill=VIOLET)
-            c.itemconfig(self.orb_core_glow, outline=VIOLET_GLOW)
+            c.itemconfig(self.orb_core, fill=ELECTRIC_BLUE)
+            c.itemconfig(self.orb_core_glow, outline=ELECTRIC_BLUE_GLOW)
 
             # Subtle glow rings
             for i, glow in enumerate(self.orb_glow_rings):
                 gr = max_r - i * 8 + math.sin(phase + i) * 4
                 c.coords(glow, center - gr, center - gr, center + gr, center + gr)
-                c.itemconfig(glow, fill="", outline="")
+                c.itemconfig(glow, fill=_hex_lerp(BG_MAIN, ELECTRIC_BLUE, 0.04), outline="")
 
         elif self.orb_state == ORB_LISTENING:
-            # Expanded/pulsing rings - active listening
+            # Expanded/pulsing rings - active listening (electric blue dominant)
             phase = (self.orb_ring_phases[0] + 0.15) % (2 * math.pi)
             for i in range(self.ORB_RINGS):
                 self.orb_ring_phases[i] = phase + i * 0.5
-                # Rings expand outward
                 expand = (math.sin(self.orb_ring_phases[i]) + 1) * 0.5
-                r = self.orb_ring_base_radii[i] + 8 + expand * 15
+                r = self.orb_ring_base_radii[i] + 8 + expand * 18
                 c.coords(self.orb_rings[i],
                     center - r, center - r, center + r, center + r)
-                # Cyan dominant when listening
-                alpha = 1.0 - expand * 0.5
-                color = CYAN if i % 2 == 0 else VIOLET
+                color = ELECTRIC_BLUE if i % 2 == 0 else ELECTRIC_BLUE_GLOW
                 c.itemconfig(self.orb_rings[i], outline=color, width=3 if i < 2 else 2)
 
-            # Core expands and glows cyan
-            core_pulse = 22 + math.sin(phase * 2) * 6
+            # Core expands and glows electric blue
+            core_pulse = 24 + math.sin(phase * 2) * 8
             c.coords(self.orb_core,
                 center - core_pulse, center - core_pulse,
                 center + core_pulse, center + core_pulse)
-            c.itemconfig(self.orb_core, fill=CYAN)
-            c.itemconfig(self.orb_core_glow, outline=CYAN_GLOW, width=2)
+            c.itemconfig(self.orb_core, fill=ELECTRIC_BLUE)
+            c.itemconfig(self.orb_core_glow, outline=ELECTRIC_BLUE_GLOW, width=3)
 
             # Glow rings active
             for i, glow in enumerate(self.orb_glow_rings):
-                gr = max_r - i * 8 + math.sin(phase + i * 0.7) * 8
+                gr = max_r - i * 8 + math.sin(phase + i * 0.7) * 10
                 c.coords(glow, center - gr, center - gr, center + gr, center + gr)
-                c.itemconfig(glow, fill=_hex_lerp(BG_MAIN, CYAN, 0.08), outline="")
+                c.itemconfig(glow, fill=_hex_lerp(BG_MAIN, ELECTRIC_BLUE, 0.12), outline="")
 
         elif self.orb_state == ORB_PROCESSING:
             # Rotating/alternating rings - thinking
             phase = (self.orb_ring_phases[0] + 0.12) % (2 * math.pi)
             for i in range(self.ORB_RINGS):
                 self.orb_ring_phases[i] = phase + i * 1.2
-                # Rings rotate/swap
-                r = self.orb_ring_base_radii[i] + math.sin(self.orb_ring_phases[i]) * 4
+                r = self.orb_ring_base_radii[i] + math.sin(self.orb_ring_phases[i]) * 5
                 c.coords(self.orb_rings[i],
                     center - r, center - r, center + r, center + r)
-                # Alternating violet/cyan
-                color = VIOLET if int(phase * 2 + i) % 2 == 0 else CYAN
+                color = ELECTRIC_BLUE if int(phase * 2 + i) % 2 == 0 else ELECTRIC_VIOLET
                 c.itemconfig(self.orb_rings[i], outline=color, width=2)
 
             # Core spins with gradient feel
-            core_pulse = 20 + math.sin(phase * 3) * 3
+            core_pulse = 22 + math.sin(phase * 3) * 4
             c.coords(self.orb_core,
                 center - core_pulse, center - core_pulse,
                 center + core_pulse, center + core_pulse)
-            color = VIOLET if int(phase * 3) % 2 == 0 else CYAN
+            color = ELECTRIC_BLUE if int(phase * 3) % 2 == 0 else ELECTRIC_VIOLET
             c.itemconfig(self.orb_core, fill=color)
             c.itemconfig(self.orb_core_glow, outline=color)
 
@@ -517,37 +519,36 @@ class VoiceAssistantApp:
             phase = (self.orb_ring_phases[0] + 0.18) % (2 * math.pi)
             for i in range(self.ORB_RINGS):
                 self.orb_ring_phases[i] = phase + i * 0.4
-                # Waveform simulation
                 wave = abs(math.sin(self.orb_ring_phases[i] * 2))
-                r = self.orb_ring_base_radii[i] + wave * 12
+                r = self.orb_ring_base_radii[i] + wave * 14
                 c.coords(self.orb_rings[i],
                     center - r, center - r, center + r, center + r)
-                color = VIOLET if i % 2 == 0 else CYAN
+                color = ELECTRIC_BLUE if i % 2 == 0 else ELECTRIC_VIOLET
                 c.itemconfig(self.orb_rings[i], outline=color, width=2 + int(wave * 2))
 
             # Core pulses with speech rhythm
-            core_pulse = 20 + abs(math.sin(phase * 4)) * 8
+            core_pulse = 22 + abs(math.sin(phase * 4)) * 10
             c.coords(self.orb_core,
                 center - core_pulse, center - core_pulse,
                 center + core_pulse, center + core_pulse)
-            c.itemconfig(self.orb_core, fill=VIOLET)
-            c.itemconfig(self.orb_core_glow, outline=VIOLET_GLOW, width=2)
+            c.itemconfig(self.orb_core, fill=ELECTRIC_BLUE)
+            c.itemconfig(self.orb_core_glow, outline=ELECTRIC_BLUE_GLOW, width=3)
 
-        self.orb_animation_id = self.root.after(50, self._animate_orb)
+        self.orb_animation_id = self.root.after(40, self._animate_orb)
 
     def _set_orb_state(self, state: str, status_text: str = None):
         """Update the orb visual state and status text."""
         self.orb_state = state
         if status_text:
-            self.orb_status.configure(text=status_text)
+            self.orb_status.configure(text=status_text, fg=TEXT_PRIMARY)
         elif state == ORB_READY:
-            self.orb_status.configure(text="Ready when you are")
+            self.orb_status.configure(text="Ready when you are", fg=TEXT_MUTED)
         elif state == ORB_LISTENING:
-            self.orb_status.configure(text="Listening…")
+            self.orb_status.configure(text="Listening…", fg=ELECTRIC_BLUE)
         elif state == ORB_PROCESSING:
-            self.orb_status.configure(text="Processing…")
+            self.orb_status.configure(text="Processing…", fg=ELECTRIC_VIOLET)
         elif state == ORB_SPEAKING:
-            self.orb_status.configure(text="Speaking…")
+            self.orb_status.configure(text="Speaking…", fg=ELECTRIC_BLUE_GLOW)
 
     def _build_visualizer(self):
         """Legacy visualizer - kept for compatibility but not used."""
@@ -565,8 +566,8 @@ class VoiceAssistantApp:
             state="disabled",
             bg=BG_CARD,
             fg=TEXT_PRIMARY,
-            insertbackground=TEXT_PRIMARY,
-            selectbackground=VIOLET,
+            insertbackground=ELECTRIC_BLUE,
+            selectbackground=ELECTRIC_BLUE,
             relief="flat",
             borderwidth=0,
             highlightthickness=0,
@@ -578,20 +579,20 @@ class VoiceAssistantApp:
         # Modern chat-style tags with card/bubble feel
         # User messages - right aligned with violet accent
         self.conversation.tag_configure(
-            "user_name", foreground=VIOLET, justify="right",
+            "user_name", foreground=ELECTRIC_VIOLET, justify="right",
             font=("Segoe UI", 7, "bold"), spacing1=8, spacing3=2,
         )
         self.conversation.tag_configure(
-            "user", foreground=VIOLET_SOFT, justify="right",
+            "user", foreground=ELECTRIC_VIOLET_SOFT, justify="right",
             font=("Segoe UI", 10), spacing3=16, lmargin1=60, lmargin2=60, rmargin=12,
         )
-        # Assistant messages - left aligned with cyan accent
+        # Assistant messages - left aligned with electric blue accent
         self.conversation.tag_configure(
-            "assistant_name", foreground=CYAN, justify="left",
+            "assistant_name", foreground=ELECTRIC_BLUE, justify="left",
             font=("Segoe UI", 7, "bold"), spacing1=8, spacing3=2,
         )
         self.conversation.tag_configure(
-            "assistant", foreground="#d0d8e8", justify="left",
+            "assistant", foreground="#c8e8ff", justify="left",
             font=("Segoe UI", 10), spacing3=16, lmargin1=12, lmargin2=12, rmargin=60,
         )
         # System messages
@@ -613,7 +614,6 @@ class VoiceAssistantApp:
         # Input container with integrated buttons
         input_wrap = tk.Frame(composer, bg=BG_CARD, highlightthickness=1, highlightbackground=BORDER)
         input_wrap.pack(fill=tk.X)
-        # Hover effect on input wrapper
         input_wrap.bind("<Enter>", lambda e: input_wrap.configure(highlightbackground=BORDER_ACCENT))
         input_wrap.bind("<Leave>", lambda e: input_wrap.configure(highlightbackground=BORDER))
 
@@ -623,7 +623,7 @@ class VoiceAssistantApp:
             font=("Segoe UI", 12),
             bg=BG_CARD,
             fg=TEXT_PRIMARY,
-            insertbackground=VIOLET,
+            insertbackground=ELECTRIC_BLUE,
             relief="flat",
             bd=0,
             highlightthickness=0,
@@ -641,38 +641,36 @@ class VoiceAssistantApp:
         btn_frame = tk.Frame(input_wrap, bg=BG_CARD)
         btn_frame.pack(side=tk.RIGHT, padx=(0, 16), pady=8)
 
-        # Microphone button (primary - circular)
+        # Microphone button (primary - circular with electric blue)
         self.listen_button = tk.Button(
             btn_frame, text="●", command=self.toggle_listening,
-            bg=VIOLET, fg="white", activebackground="#9333ea", activeforeground="white",
+            bg=ELECTRIC_BLUE, fg="white", activebackground=ELECTRIC_BLUE_DIM, activeforeground="white",
             font=("Segoe UI", 16, "bold"), relief="flat", bd=0,
             width=3, height=1, cursor="hand2",
         )
         self.listen_button.pack(side=tk.LEFT, padx=(0, 8))
-        self._hover(self.listen_button, VIOLET, "#9333ea")
-        # Make it visually circular
-        self.listen_button.bind("<Enter>", lambda e: self.listen_button.configure(width=3))
-        self._listen_button_primary = True  # Track if mic is primary
+        self._hover(self.listen_button, ELECTRIC_BLUE, ELECTRIC_BLUE_DIM)
+        self._listen_button_primary = True
 
         # Send button
         self.send_button = tk.Button(
             btn_frame, text="SEND", command=self.send_text_command,
-            bg=VIOLET, fg="white", activebackground="#9333ea", activeforeground="white",
+            bg=ELECTRIC_BLUE, fg="white", activebackground=ELECTRIC_BLUE_DIM, activeforeground="white",
             font=("Segoe UI", 9, "bold"), relief="flat", bd=0, padx=18, pady=8,
             cursor="hand2",
         )
         self.send_button.pack(side=tk.LEFT, padx=(0, 8))
-        self._hover(self.send_button, VIOLET, "#9333ea")
+        self._hover(self.send_button, ELECTRIC_BLUE, ELECTRIC_BLUE_DIM)
 
         # Clear button (secondary)
         self.clear_button = tk.Button(
             btn_frame, text="CLEAR", command=self.clear_conversation,
-            bg=BG_INPUT, fg=TEXT_MUTED, activebackground=BG_CARD_HOVER, activeforeground=VIOLET,
+            bg=BG_INPUT, fg=TEXT_MUTED, activebackground=BG_CARD_HOVER, activeforeground=ELECTRIC_BLUE,
             font=("Segoe UI", 9), relief="flat", bd=0, padx=14, pady=8,
             cursor="hand2",
         )
         self.clear_button.pack(side=tk.LEFT)
-        self._hover(self.clear_button, BG_INPUT, BG_CARD_HOVER, TEXT_MUTED, VIOLET)
+        self._hover(self.clear_button, BG_INPUT, BG_CARD_HOVER, TEXT_MUTED, ELECTRIC_BLUE)
 
     def _on_entry_focus_in(self, event):
         """Handle entry focus in - clear placeholder."""
@@ -687,7 +685,7 @@ class VoiceAssistantApp:
             self.text_entry.configure(fg=TEXT_DIM)
 
     def _build_sidebar(self, parent):
-        """Compressed right-hand System panel: mic/voice status + quick actions."""
+        """Right-hand System panel: mic/voice status + quick actions."""
         # ---- System status card ----
         sys_card = self._card(parent)
         sys_card.pack(fill=tk.X, pady=(0, 12))
@@ -701,7 +699,7 @@ class VoiceAssistantApp:
             font=("Segoe UI", 7, "bold"),
         ).pack(side=tk.LEFT)
 
-        # Status indicators - priority at top
+        # Status indicators
         status_grid = tk.Frame(sys_card, bg=BG_CARD)
         status_grid.pack(fill=tk.X, pady=(0, 8))
 
@@ -737,7 +735,7 @@ class VoiceAssistantApp:
         divider = tk.Frame(sys_card, bg=BORDER, height=1)
         divider.pack(fill=tk.X, pady=10)
 
-        # Controls (secondary) - collapsible feel
+        # Controls
         controls_frame = tk.Frame(sys_card, bg=BG_CARD)
         controls_frame.pack(fill=tk.X)
 
@@ -820,6 +818,7 @@ class VoiceAssistantApp:
             ("😄", "Joke", "tell me a joke"),
             ("🔍", "Google", "open google"),
             ("▶", "YouTube", "open youtube"),
+            ("💻", "GitHub", "open github"),
         ]
 
         pills_frame = tk.Frame(quick_card, bg=BG_CARD)
@@ -832,23 +831,20 @@ class VoiceAssistantApp:
             pill.grid(row=row, column=col, padx=(0 if col == 0 else 6, 0), pady=(0, 6), sticky="ew")
             pills_frame.grid_columnconfigure(col, weight=1)
 
-            pill.bind("<Enter>", lambda e, p=pill: p.configure(highlightbackground=VIOLET, bg=BG_CARD_HOVER))
+            pill.bind("<Enter>", lambda e, p=pill: p.configure(highlightbackground=ELECTRIC_BLUE, bg=BG_CARD_HOVER))
             pill.bind("<Leave>", lambda e, p=pill: p.configure(highlightbackground=BORDER, bg=BG_INPUT))
 
             btn = tk.Button(
                 pill, text=f"{icon}  {label}", command=lambda c=command: self._quick_send(c),
-                bg=BG_INPUT, fg=TEXT_PRIMARY, activebackground=BG_CARD_HOVER, activeforeground=VIOLET,
+                bg=BG_INPUT, fg=TEXT_PRIMARY, activebackground=BG_CARD_HOVER, activeforeground=ELECTRIC_BLUE,
                 font=("Segoe UI", 9), relief="flat", bd=0, padx=12, pady=8,
                 cursor="hand2", anchor=tk.W,
             )
             btn.pack(fill=tk.X, padx=2, pady=2)
-            # Hover on inner button too
-            btn.bind("<Enter>", lambda e, p=pill: p.configure(highlightbackground=VIOLET, bg=BG_CARD_HOVER))
+            btn.bind("<Enter>", lambda e, p=pill: p.configure(highlightbackground=ELECTRIC_BLUE, bg=BG_CARD_HOVER))
             btn.bind("<Leave>", lambda e, p=pill: p.configure(highlightbackground=BORDER, bg=BG_INPUT))
 
-    # ------------------------------------------------------------------
-    # Speech component initialization
-    # ------------------------------------------------------------------
+    # ─── Speech Component Initialization ─────────────────────────────────
     def initialize_speech_components(self):
         """Initialize speech recognition and TTS engines."""
         self._init_microphone()
@@ -858,8 +854,8 @@ class VoiceAssistantApp:
     def _init_microphone(self):
         """(Re)initialize the microphone; safe to call again on failure.
 
-        Uses configured device_index (default 1, verified working) with fallback
-        to system default if the specified device fails.
+        Uses system default microphone (device_index=None). Falls back gracefully
+        with clear error messages if initialization fails.
         """
         print("[MIC] Initializing microphone...")
         self.mic_ok = False
@@ -876,47 +872,39 @@ class VoiceAssistantApp:
             # Optimized recognizer settings for reliable recognition
             self.recognizer.energy_threshold = 300
             self.recognizer.dynamic_energy_threshold = True
-            self.recognizer.pause_threshold = 0.8      # seconds of silence to end phrase
-            self.recognizer.phrase_threshold = 0.3     # minimum seconds of speech
-            self.recognizer.non_speaking_duration = 0.5  # silence after phrase
+            self.recognizer.pause_threshold = 0.8
+            self.recognizer.phrase_threshold = 0.3
+            self.recognizer.non_speaking_duration = 0.5
 
-            # Try configured device first, fallback to default
-            try:
-                print(f"[MIC] Creating microphone with device_index={self.mic_device_index}")
-                self.microphone = sr.Microphone(device_index=self.mic_device_index)
-                print("[MIC] Microphone object created")
-                with self.microphone as source:
-                    print("[MIC] Adjusting for ambient noise (1.0s)...")
-                    self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
-                    print(f"[MIC] Energy threshold after calibration: {self.recognizer.energy_threshold}")
-                self.mic_ok = True
-                print("[MIC] Microphone ready")
-                self._set_mic_status(
-                    f"Microphone ready (device {self.mic_device_index}). Click LISTEN and speak."
-                )
-            except Exception as exc:
-                print(f"[MIC ERROR] Device {self.mic_device_index} failed: {exc}")
-                # Fallback to system default device
-                try:
-                    print("[MIC] Falling back to default device...")
-                    self.microphone = sr.Microphone()
-                    with self.microphone as source:
-                        self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
-                    self.mic_ok = True
-                    print("[MIC] Microphone ready (default device)")
-                    self._set_mic_status(
-                        "Microphone ready (default device). Click LISTEN and speak."
-                    )
-                except Exception as exc2:
-                    print(f"[MIC ERROR] Default device also failed: {exc2}")
-                    raise exc2
+            # Use system default microphone
+            print("[MIC] Creating microphone with default device...")
+            self.microphone = sr.Microphone(device_index=self.mic_device_index)
+            print("[MIC] Microphone object created")
+            with self.microphone as source:
+                print("[MIC] Adjusting for ambient noise (1.0s)...")
+                self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
+                print(f"[MIC] Energy threshold after calibration: {self.recognizer.energy_threshold}")
+            self.mic_ok = True
+            print("[MIC] Microphone ready")
+            self._set_mic_status(
+                "Microphone ready (default device). Click LISTEN and speak."
+            )
         except Exception as exc:
             print(f"[MIC ERROR] {type(exc).__name__}: {exc}")
             self.mic_ok = False
-            self._set_mic_status(
-                f"Microphone unavailable: {exc}. "
-                "Install PyAudio (see README) or use typed commands."
-            )
+            # Provide specific guidance for common PortAudio errors
+            error_msg = str(exc)
+            if "Unanticipated host error" in error_msg or "Errno -9999" in error_msg:
+                self._set_mic_status(
+                    "Microphone unavailable (audio driver error). "
+                    "Check microphone permissions/privacy settings. "
+                    "Typed commands still work — use RETRY MICROPHONE to re-attempt."
+                )
+            else:
+                self._set_mic_status(
+                    f"Microphone unavailable: {exc}. "
+                    "Install PyAudio (see README) or use typed commands."
+                )
         finally:
             self._refresh_mic_ui()
             self._refresh_engine_label()
@@ -927,7 +915,7 @@ class VoiceAssistantApp:
         The actual pyttsx3 engine is created inside the worker thread
         (with COM initialization) to avoid SAPI5 cross-threading issues.
         """
-        self.tts_engine = None  # Will be created in worker thread
+        self.tts_engine = None
         self.voice_names = []
         self.voice_ids = []
         self._tts_shutdown.clear()
@@ -984,7 +972,6 @@ class VoiceAssistantApp:
         """Sync the listen button and mic status dot with mic state."""
         if self.listening:
             return
-        # Update sidebar mic status
         if hasattr(self, 'mic_status_dot') and hasattr(self, 'mic_status_label'):
             if self.mic_ok:
                 self.mic_status_dot.configure(fg=SUCCESS)
@@ -995,7 +982,6 @@ class VoiceAssistantApp:
             else:
                 self.mic_status_dot.configure(fg=DANGER)
                 self.mic_status_label.configure(text="Microphone: Unavailable", fg=TEXT_MUTED)
-        # Update listen button state
         if hasattr(self, 'listen_button'):
             self.listen_button.configure(state=tk.NORMAL if self.mic_ok else tk.DISABLED)
 
@@ -1006,13 +992,10 @@ class VoiceAssistantApp:
         voice_text = "Ready" if voice_ok else "Unavailable"
         self.engine_label.configure(text=f"Microphone: {mic_text}  •  Voice: {voice_text}")
 
-    # ------------------------------------------------------------------
-    # Status + queue plumbing (all GUI updates happen on the main thread)
-    # ------------------------------------------------------------------
+    # ─── Status + Queue Plumbing ──────────────────────────────────────────
     def _set_status(self, message: str):
         """Update the status bar and orb status (main thread only)."""
         self.status_label.configure(text=message)
-        # Also update orb status text
         if hasattr(self, 'orb_status'):
             self.orb_status.configure(text=message)
 
@@ -1040,7 +1023,6 @@ class VoiceAssistantApp:
                 elif msg_type == "action":
                     self.handle_action(data)
                 elif msg_type == "listening_state":
-                    # Worker thread ended on its own — reset UI here.
                     self._reset_listening_ui()
                 elif msg_type == "speaking_state":
                     if data:
@@ -1057,14 +1039,11 @@ class VoiceAssistantApp:
             pass
         self.root.after(60, self._poll_gui_queue)
 
-    # ------------------------------------------------------------------
-    # Conversation display
-    # ------------------------------------------------------------------
+    # ─── Conversation Display ─────────────────────────────────────────────
     def add_message(self, speaker: str, text: str, kind: str):
         """Append a chat-style message (main thread only)."""
         self.conversation.configure(state="normal")
         timestamp = datetime.now().strftime("%H:%M")
-        # Use YOU / NOVA as per branding requirements
         display_name = "YOU" if kind == "user" else "NOVA"
         self.conversation.insert(tk.END, f"{display_name}  ·  {timestamp}\n", f"{kind}_name")
         self.conversation.insert(tk.END, f"{text}\n\n", kind)
@@ -1095,7 +1074,7 @@ class VoiceAssistantApp:
         """Run a command through the core and render the result."""
         try:
             response = self.assistant.process_command(user_input)
-        except Exception as exc:  # never let a bad command kill the GUI
+        except Exception as exc:
             response = AssistantResponse(text=f"Something went wrong: {exc}")
         self.add_message("Assistant", response.text, "assistant")
         self.speak_text(response.text)
@@ -1105,9 +1084,7 @@ class VoiceAssistantApp:
                 "data": response.action_data or {},
             })
 
-    # ------------------------------------------------------------------
-    # Listening (speech recognition)
-    # ------------------------------------------------------------------
+    # ─── Listening (Speech Recognition) ──────────────────────────────────
     def toggle_listening(self):
         """Toggle listening state."""
         if self.listening:
@@ -1124,12 +1101,19 @@ class VoiceAssistantApp:
                 "SpeechRecognition and PyAudio, or use the text input instead.",
             )
             return
+        if not self.mic_ok:
+            messagebox.showwarning(
+                "Microphone Not Ready",
+                "Microphone initialization failed. Click 'Retry Microphone' "
+                "in the System panel to re-attempt, or use text input.",
+            )
+            return
         if self.listening:
             return
 
         self.listening = True
         self._stop_event.clear()
-        # Update listen button to show stop state (change icon)
+        # Update listen button to show stop state
         self.listen_button.configure(text="■", bg=DANGER, activebackground="#dc2626")
         self._listen_button_primary = False
         self._set_status("Listening… speak now")
@@ -1154,7 +1138,7 @@ class VoiceAssistantApp:
         """Return the listen controls to their idle state (main thread only)."""
         self.listening = False
         self.listen_button.configure(
-            text="●", bg=VIOLET, activebackground="#9333ea",
+            text="●", bg=ELECTRIC_BLUE, activebackground=ELECTRIC_BLUE_DIM,
             state=tk.NORMAL if self.mic_ok else tk.DISABLED,
         )
         self._listen_button_primary = True
@@ -1173,7 +1157,6 @@ class VoiceAssistantApp:
 
         while self.listening and not self._stop_event.is_set():
             # Wait for any ongoing TTS to finish before listening
-            # This prevents the microphone from picking up the assistant's own voice
             while self.tts_queue.qsize() > 0 or self._tts_speaking:
                 time.sleep(0.1)
                 if not self.listening or self._stop_event.is_set():
@@ -1191,9 +1174,23 @@ class VoiceAssistantApp:
                     )
                 print("[MIC] audio captured")
             except sr.WaitTimeoutError:
-                # Normal: no speech within the timeout window. Keep listening.
                 self.gui_queue.put(("status", "Listening... (no speech detected)"))
                 continue
+            except AttributeError as exc:
+                # Workaround for SpeechRecognition 3.17.0 bug:
+                # Microphone.__enter__ can fail silently (stream=None), then __exit__ crashes
+                # with "AttributeError: 'NoneType' object has no attribute 'close'"
+                if "'NoneType' object has no attribute 'close'" in str(exc):
+                    print(f"[MIC ERROR] SpeechRecognition bug detected: {exc}")
+                    self.gui_queue.put((
+                        "status",
+                        "Microphone stream error (driver/permissions?). "
+                        "Click 'Retry Microphone' to reinitialize."
+                    ))
+                else:
+                    print(f"[MIC ERROR] {type(exc).__name__}: {exc}")
+                    self.gui_queue.put(("status", f"Microphone error: {exc}"))
+                break
             except Exception as exc:
                 print(f"[MIC ERROR] {type(exc).__name__}: {exc}")
                 self.gui_queue.put(("status", f"Microphone error: {exc}"))
@@ -1208,7 +1205,6 @@ class VoiceAssistantApp:
                 self.gui_queue.put(("status", "Didn't catch that — still listening"))
                 continue
             except sr.RequestError as exc:
-                # Speech-to-text service unreachable (offline / quota).
                 print(f"[MIC ERROR] RequestError: {exc}")
                 self.gui_queue.put(("status", f"Speech service unreachable: {exc}"))
                 continue
@@ -1234,44 +1230,29 @@ class VoiceAssistantApp:
                     "data": response.action_data or {},
                 }))
 
-        # Loop ended without a user-initiated stop (error path) —
-        # ask the main thread to restore the UI.
         if self.listening:
             self.gui_queue.put(("listening_state", False))
 
-    # ------------------------------------------------------------------
-    # Text-to-speech
-    # ------------------------------------------------------------------
+    # ─── Text-to-Speech ───────────────────────────────────────────────────
     def speak_text(self, text: str):
         """Speak text using the TTS engine (queued from any thread)."""
         if not self.tts_enabled.get():
             print(f"[TTS] TTS disabled, skipping: {text}")
             return
-        # Enqueue the text for the persistent TTS worker
-        # Worker thread owns the engine, so we just queue the text
         print(f"[TTS] queued: {text}")
         self.tts_queue.put(text)
 
     def _tts_worker_loop(self):
-        """Persistent TTS worker: dequeues and speaks requests sequentially.
-
-        Runs on a dedicated daemon thread. Creates its own pyttsx3 engine
-        with COM initialization. Uses simple runAndWait() pattern which
-        works correctly for multiple sequential utterances on Windows/SAPI5.
-        Handles both text-to-speak and property change requests.
-        Never touches Tkinter directly — status updates go through gui_queue.
-        """
+        """Persistent TTS worker: dequeues and speaks requests sequentially."""
         print(f"[TTS] Worker thread started, alive: {threading.current_thread().is_alive()}")
-        # Initialize COM for this thread (required for SAPI5 on Windows)
         if PYTHONCOM_AVAILABLE:
             try:
                 pythoncom.CoInitialize()
                 print("[TTS] COM initialized")
             except Exception as exc:
                 print(f"[TTS ERROR] COM init failed: {type(exc).__name__}: {exc}")
-                pass  # Continue anyway
+                pass
 
-        # Create engine on THIS thread (not main thread)
         engine = None
         if TTS_AVAILABLE:
             try:
@@ -1284,17 +1265,14 @@ class VoiceAssistantApp:
                 self.gui_queue.put(("status", f"TTS engine creation failed: {exc}"))
                 engine = None
 
-        # Store preferred voice index for the worker to apply
         preferred_voice_idx = 0
         if self.voice_ids:
-            # Find the preferred voice index (same logic as _init_tts)
             for i, name in enumerate(self.voice_names):
                 name_lower = name.lower()
                 if "female" in name_lower or "zira" in name_lower or "samantha" in name_lower:
                     preferred_voice_idx = i
                     break
 
-        # Apply voice if available
         if engine and self.voice_ids and preferred_voice_idx < len(self.voice_ids):
             try:
                 engine.setProperty("voice", self.voice_ids[preferred_voice_idx])
@@ -1302,17 +1280,16 @@ class VoiceAssistantApp:
                 print(f"[TTS ERROR] Voice setProperty failed: {type(exc).__name__}: {exc}")
                 pass
 
-        self._worker_engine = engine  # Store for potential access from main thread
+        self._worker_engine = engine
 
         try:
             while not self._tts_shutdown.is_set():
                 try:
-                    # Wait for next request (with timeout to check shutdown)
                     item = self.tts_queue.get(timeout=0.5)
                 except queue.Empty:
                     continue
 
-                if item is None:  # Sentinel for shutdown
+                if item is None:
                     print("[TTS] Sentinel received, shutting down worker")
                     self.tts_queue.task_done()
                     break
@@ -1322,7 +1299,6 @@ class VoiceAssistantApp:
                     self.tts_queue.task_done()
                     continue
 
-                # Handle property change requests
                 if isinstance(item, tuple) and item[0] == "SET_PROPERTY":
                     props = item[1] if len(item) > 1 else {}
                     try:
@@ -1339,16 +1315,13 @@ class VoiceAssistantApp:
                         self.tts_queue.task_done()
                     continue
 
-                # Handle text-to-speak
                 text = item
                 if not text:
                     self.tts_queue.task_done()
                     continue
 
                 print(f"[TTS] dequeued: {text}")
-                # Set speaking flag for listen_loop to check
                 self._tts_speaking = True
-                # Notify UI that we're speaking
                 self.gui_queue.put(("speaking_state", True))
                 try:
                     print(f"[TTS] speaking: {text}")
@@ -1365,7 +1338,6 @@ class VoiceAssistantApp:
                     self.tts_queue.task_done()
                     print(f"[TTS] completed")
         finally:
-            # Cleanup
             print("[TTS] Worker loop exiting, cleaning up")
             if engine:
                 try:
@@ -1383,7 +1355,6 @@ class VoiceAssistantApp:
     def _on_tts_toggled(self):
         """Handle the voice-response on/off checkbutton."""
         if not self.tts_enabled.get():
-            # Clear any pending TTS requests when disabled
             while not self.tts_queue.empty():
                 try:
                     self.tts_queue.get_nowait()
@@ -1395,7 +1366,6 @@ class VoiceAssistantApp:
         """Apply the voice chosen in the combobox (queued to worker thread)."""
         index = self.voice_combo.current()
         if 0 <= index < len(self.voice_ids):
-            # Queue a property change request to the worker thread
             self.tts_queue.put(("SET_PROPERTY", {"voice": self.voice_ids[index]}))
 
     def _on_rate_changed(self, value):
@@ -1410,29 +1380,20 @@ class VoiceAssistantApp:
         self.volume_value_label.configure(text=f"{int(round(volume * 100))}%")
         self.tts_queue.put(("SET_PROPERTY", {"volume": volume}))
 
-    # ------------------------------------------------------------------
-    # Actions from the assistant core
-    # ------------------------------------------------------------------
+    # ─── Actions from Assistant Core ──────────────────────────────────────
     def handle_action(self, action_data: dict):
         """Handle actions produced by the assistant core."""
         action = action_data.get("action")
         data = action_data.get("data") or {}
 
         if action == "open_url":
-            # NOTE: assistant_core._handle_open already opened the allowlisted
-            # URL (its unit tests assert that call). Opening it here too would
-            # launch a second browser tab, so the GUI only reports success.
             site = data.get("site", "site")
             self._set_status(f"Opened {site} in your browser")
         elif action == "exit":
             self._set_status("Goodbye!")
-            self.root.after(1200, self.on_closing)  # delay to show the message
+            self.root.after(1200, self.on_closing)
 
-    # ------------------------------------------------------------------
-    # Visualizer animation
-    # ------------------------------------------------------------------
-    # Shutdown
-    # ------------------------------------------------------------------
+    # ─── Shutdown ────────────────────────────────────────────────────────
     def on_closing(self):
         """Handle application closing."""
         self.listening = False
@@ -1441,13 +1402,11 @@ class VoiceAssistantApp:
         if thread and thread.is_alive():
             thread.join(timeout=1.5)
 
-        # Shutdown TTS worker gracefully
         self._tts_shutdown.set()
-        self.tts_queue.put(None)  # Sentinel to unblock worker
+        self.tts_queue.put(None)
         if self.tts_worker_thread and self.tts_worker_thread.is_alive():
             self.tts_worker_thread.join(timeout=2.0)
 
-        # Engine is owned by worker thread, already cleaned up there
         self.root.destroy()
 
 

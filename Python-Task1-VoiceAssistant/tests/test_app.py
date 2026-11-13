@@ -257,8 +257,8 @@ class TestTTSWorker:
         # Worker engine stop should have been called once
         worker_engine.stop.assert_called_once()
 
-    def test_microphone_init_uses_device_index(self):
-        """Verify _init_microphone uses configured device_index with fallback."""
+    def test_microphone_init_uses_default_device(self):
+        """Verify _init_microphone uses system default microphone (device_index=None)."""
         # Need to reset sr mock for this test
         mock_sr.reset_mock()
         mock_sr.Recognizer.return_value = MagicMock()
@@ -270,30 +270,25 @@ class TestTTSWorker:
 
         app_instance = self.create_app_instance()
 
-        # Should have tried device_index=1 first
-        mock_sr.Microphone.assert_called_with(device_index=1)
+        # Should use default device (device_index=None)
+        mock_sr.Microphone.assert_called_with(device_index=None)
 
-    def test_microphone_init_fallback_to_default(self):
-        """Verify _init_microphone falls back to default device on failure."""
+    def test_microphone_init_handles_failure_gracefully(self):
+        """Verify _init_microphone handles initialization failure gracefully."""
         mock_sr.reset_mock()
         mock_sr.Recognizer.return_value = MagicMock()
-        mock_mic = MagicMock()
-        # First call fails, second succeeds
-        mock_sr.Microphone.side_effect = [
-            Exception("Device 1 failed"),
-            mock_mic,
-        ]
+        mock_sr.Microphone.side_effect = Exception("Audio driver error")
         mock_sr.WaitTimeoutError = Exception
         mock_sr.UnknownValueError = Exception
         mock_sr.RequestError = Exception
 
         app_instance = self.create_app_instance()
 
-        # Should have been called twice: once with device_index=1, once without
-        assert mock_sr.Microphone.call_count == 2
-        calls = mock_sr.Microphone.call_args_list
-        assert calls[0][1] == {'device_index': 1}
-        assert calls[1] == ((), {})  # No args for default
+        # Should have been called once with default device
+        assert mock_sr.Microphone.call_count == 1
+        mock_sr.Microphone.assert_called_with(device_index=None)
+        # mic_ok should be False
+        assert app_instance.mic_ok is False
 
 
 if __name__ == '__main__':
