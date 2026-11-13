@@ -329,7 +329,8 @@ class WeatherApp:
         self.temp_big.config(text=f"{w['temperature']}{sym}")
         self.desc_lbl.config(text=w['description'])
         # Metrics — display honestly; do not invent missing pressure
-        for label, key in [("Feels like", "feels_like"), ("Humidity", "humidity"),
+        # NOTE: Labels must match keys in self.metric_vars (created in create_widgets)
+        for label, key in [("Feels Like", "feels_like"), ("Humidity", "humidity"),
                            ("Wind", "wind_speed"), ("Pressure", "pressure")]:
             raw = w.get(key)
             # Treat None / missing as unavailable; 0 for pressure is also unavailable from open-meteo
@@ -340,7 +341,7 @@ class WeatherApp:
                     val = "N/A"
                 else:
                     val = raw
-                    if label == "Feels like":
+                    if label == "Feels Like":
                         val = f"{val}{sym}"
                     elif label == "Humidity":
                         val = f"{val}%"
